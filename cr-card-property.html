@@ -1,0 +1,102 @@
+<link rel="import" href="../polymer/polymer-element.html">
+
+<dom-module id="cr-card-property">
+  <script>
+    /**
+     * `cr-card-property`
+     * This element represents the property of a Clash Royale card.
+     *
+     * It is meant to be used only inside a `cr-card` element, so it is quite useless by itself.
+     *
+     * @customElement
+     * @polymer
+     */
+    class CrCardProperty extends Polymer.Element {
+      static get is() {
+        return 'cr-card-property';
+      }
+
+      static get properties() {
+        return {
+          /**
+           * The title of the property (the one display over the property value).
+           */
+          title: {
+            type: String,
+            value: '',
+            notify: true,
+          },
+          /**
+           * The value of the property.
+           */
+          value: {
+            type: String,
+            value: '',
+            notify: true,
+          },
+          /**
+           * Whether the dark gray background of the icon should be displayed.
+           *
+           * True by default.
+           */
+          showIconBackground: {
+            type: Boolean,
+            value: true,
+            notify: true,
+          },
+          /**
+           * Whether the info button on the far right should be displayed.
+           *
+           * False, by default.
+           */
+          showInfoButton: {
+            type: Boolean,
+            value: false,
+            notify: true,
+          },
+          /**
+           * The icon of the property.
+           *
+           * Available icons:
+           * - hp
+           * - shield_hp
+           * - dps
+           * - damage
+           * - area_damage
+           * - tower_damage
+           * - death_damage
+           * - hit_speed
+           * - target
+           * - speed
+           * - range
+           * - lifetime
+           * - deploy_time
+           * - stun_duration
+           * - radius
+           * - troop
+           * - count
+           * - boost
+           * - rage_fx
+           * - common_cards
+           * - rare_cards
+           * - epic_cards
+           * - legendary_cards
+           * - trophy
+           * - gold
+           * - elixir
+           * - dark_elixir
+           * - gem
+           * - transport
+           * - upgrade
+           */
+          icon: {
+            type: String,
+            notify: true,
+          },
+        };
+      }
+    }
+
+    window.customElements.define(CrCardProperty.is, CrCardProperty);
+  </script>
+</dom-module>

@@ -1,0 +1,887 @@
+<link rel="import" href="../polymer/polymer-element.html">
+<link rel="import" href="../polymer/lib/utils/flattened-nodes-observer.html">
+<link rel="import" href="webfontloader-import.html">
+<link rel="import" href="filesaver-import.html">
+<link rel="import" href="../cr-fonts/cr-fonts.html">
+
+<dom-module id="cr-card">
+  <template>
+    <style>
+      :host {
+        display: inline-block;
+      }
+
+      #card {
+        width: 100%;
+        height: auto;
+      }
+    </style>
+
+    <canvas id="card" width="1432" height="1794"></canvas>
+
+    <slot id="slot"></slot>
+  </template>
+
+  <script>
+    /**
+     * `cr-card`
+     * A Polymer 2 element that automatically generates a Clash Royale card inside a canvas.
+     *
+     * Basic example:
+     *
+     * ```html
+     * <cr-card
+     *     card-name="Simple CR Card Demo"
+     *     description="This really basic demo shows how easy it is to generate a Clash Royale card using Web Components.">
+     *     <cr-card-property title="HP" value="100" icon="hp"></cr-card-property>
+     * </cr-card>
+     * ```
+     *
+     * View the element demo for a more advanced example.
+     *
+     * @customElement
+     * @polymer
+     * @demo demo/index.html
+     */
+    class CrCard extends Polymer.Element {
+      static get is() {
+        return 'cr-card';
+      }
+
+      static get WIDTH() {
+        return 1432;
+      }
+
+      static get HEIGHT() {
+        return 1794;
+      }
+
+      static get LEGENDARY_GRADIENT() {
+        return ['#FF9', '#66FFFC', '#9F6', 'white', '#F9F'];
+      }
+
+      static get properties() {
+        return {
+          /**
+           * The language of the generated card.
+           *
+           * Available languages:
+           * - en (English)
+           * - ja (Japanese)
+           * - fr (French)
+           * - de (German)
+           * - es (Spanish)
+           * - it (Italian)
+           * - nl (Dutch)
+           * - no (Norwegian)
+           * - pt (Portuguese)
+           * - tr (Turkish)
+           */
+          language: {
+            type: String,
+            value: 'en',
+            observer: 'generate',
+          },
+          /**
+           * The name of the card.
+           */
+          cardName: {
+            type: String,
+            value: '',
+            observer: 'generate',
+          },
+          /**
+           * The rarity of the card.
+           *
+           * Available rarities:
+           * - common
+           * - rare
+           * - epic
+           * - legendary
+           */
+          rarity: {
+            type: String,
+            value: 'common',
+            observer: 'generate',
+          },
+          /**
+           * The level of the card.
+           *
+           * There are no controls on this value.
+           * This means that if you want to let the user generate his own card,
+           * you should check for the various level caps by yourself.
+           */
+          level: {
+            type: Number,
+            value: 1,
+            observer: 'generate',
+          },
+          /**
+           * The type of the card.
+           *
+           * Available types:
+           * - troop
+           * - building
+           * - spell
+           */
+          type: {
+            type: String,
+            value: 'troop',
+            observer: 'generate',
+          },
+          /**
+           * The elixir cost of the card.
+           *
+           * There are no controls on this value.
+           * This means that if you want to let the user generate his own card,
+           * you should check for the the input value by yourself.
+           */
+          elixirCost: {
+            type: String,
+            value: '?',
+            observer: 'generate',
+          },
+          /**
+           * The description of the card.
+           */
+          description: {
+            type: String,
+            value: '',
+            observer: 'generate',
+          },
+          /**
+           * The image of the card.
+           * It can also be a valid data URL (e.g. a base64 encoded image).
+           */
+          image: {
+            type: String,
+            observer: '_imageChanged',
+          },
+          _icons: {
+            type: Object,
+            value: () => {
+              return {
+                hp: new Image(),
+                shield_hp: new Image(),
+                dps: new Image(),
+                damage: new Image(),
+                area_damage: new Image(),
+                tower_damage: new Image(),
+                death_damage: new Image(),
+                hit_speed: new Image(),
+                target: new Image(),
+                speed: new Image(),
+                range: new Image(),
+                lifetime: new Image(),
+                deploy_time: new Image(),
+                stun_duration: new Image(),
+                radius: new Image(),
+                troop: new Image(),
+                count: new Image(),
+                boost: new Image(),
+                rage_fx: new Image(),
+                common_cards: new Image(),
+                rare_cards: new Image(),
+                epic_cards: new Image(),
+                legendary_cards: new Image(),
+                trophy: new Image(),
+                gold: new Image(),
+                elixir: new Image(),
+                dark_elixir: new Image(),
+                gem: new Image(),
+                transport: new Image(),
+                upgrade: new Image(),
+              };
+            },
+            readOnly: true,
+          },
+          _shapes: {
+            type: Object,
+            value: () => {
+              return {
+                normal: new Image(),
+                legendary: new Image(),
+              };
+            },
+          },
+          _rarities: {
+            type: Object,
+            value: () => {
+              return {
+                common: {
+                  color: '#666',
+                  maxLevel: 13,
+                  shape: 'normal',
+                },
+                rare: {
+                  color: '#FDA03C',
+                  maxLevel: 11,
+                  shape: 'normal',
+                },
+                epic: {
+                  color: '#C3F',
+                  maxLevel: 8,
+                  shape: 'normal',
+                },
+                legendary: {
+                  color: '#65BABA',
+                  maxLevel: 5,
+                  shape: 'legendary',
+                },
+              };
+            },
+            readOnly: true,
+          },
+          _locales: {
+            type: Object,
+            value: () => {
+              return {
+                en: {
+                  name: (cardName, level) => `Level ${level} ${cardName}`,
+                  rarity: {
+                    label: 'Rarity:',
+                    common: 'Common',
+                    rare: 'Rare',
+                    epic: 'Epic',
+                    legendary: 'Legendary'
+                  },
+                  type: {
+                    label: 'Type:',
+                    troop: 'Troop',
+                    building: 'Building',
+                    spell: 'Spell',
+                  },
+                },
+                ja: {
+                  name: (cardName, level) => `レベル${level} ${cardName}`,
+                  rarity: {
+                    label: 'レア度：',
+                    common: 'ノーマル',
+                    rare: 'レア',
+                    epic: 'スーパーレア',
+                    legendary: 'ウルトラレア',
+                  },
+                  type: {
+                    label: 'タイプ：',
+                    troop: 'ユニット',
+                    building: '建物',
+                    spell: '呪文',
+                  },
+                },
+                fr: {
+                  name: (cardName, level) => `${cardName} de niveau ${level}`,
+                  rarity: {
+                    label: 'Rareté :',
+                    common: 'Commune',
+                    rare: 'Rare',
+                    epic: 'Épique',
+                    legendary: 'Légendaire',
+                  },
+                  type: {
+                    label: 'Type :',
+                    troop: 'Combattant',
+                    building: 'Bâtiment',
+                    spell: 'Sort',
+                  },
+                },
+                de: {
+                  name: (cardName, level) => `${cardName} Level ${level}`,
+                  rarity: {
+                    label: 'Seltenheit',
+                    common: 'Gewöhnlich',
+                    rare: 'Selten',
+                    epic: 'Episch',
+                    legendary: 'Legendär',
+                  },
+                  type: {
+                    label: 'Typ',
+                    troop: 'Einheit',
+                    building: 'Gebäude',
+                    spell: 'Zauber',
+                  },
+                },
+                es: {
+                  name: (cardName, level) => `${cardName} (nivel ${level})`,
+                  rarity: {
+                    label: 'Calidad:',
+                    common: 'Común',
+                    rare: 'Especial',
+                    epic: 'Épica',
+                    legendary: 'Legendaria',
+                  },
+                  type: {
+                    label: 'Tipo',
+                    troop: 'Tropa',
+                    building: 'Estructura',
+                    spell: 'Hechizo',
+                  },
+                },
+                it: {
+                  name: (cardName, level) => `${cardName} livello ${level}`,
+                  rarity: {
+                    label: 'Rarità:',
+                    common: 'Comune',
+                    rare: 'Rara',
+                    epic: 'Epica',
+                    legendary: 'Leggendaria',
+                  },
+                  type: {
+                    label: 'Tipo:',
+                    troop: 'Truppa',
+                    building: 'Edificio',
+                    spell: 'Incantesimo',
+                  },
+                },
+                nl: {
+                  name: (cardName, level) => `Level ${level} ${cardName}`,
+                  rarity: {
+                    label: 'Zeldzaamheid:',
+                    common: 'Gewoon',
+                    rare: 'Zeldzaam',
+                    epic: 'Episch',
+                    legendary: 'Legendarisch',
+                  },
+                  type: {
+                    label: 'Type:',
+                    troop: 'Eenheid',
+                    building: 'Gebouw',
+                    spell: 'Spreuk',
+                  },
+                },
+                no: {
+                  name: (cardName, level) => `${cardName} på nivå ${level}`,
+                  rarity: {
+                    label: 'Forekomst:',
+                    common: 'Vanlig',
+                    rare: 'Sjeldent',
+                    epic: 'Episk',
+                    legendary: 'Legendarisk',
+                  },
+                  type: {
+                    label: 'Type:',
+                    troop: 'Tropp',
+                    building: 'Bygning',
+                    spell: 'Formel',
+                  },
+                },
+                pt: {
+                  name: (cardName, level) => `${cardName} Nível ${level}`,
+                  rarity: {
+                    label: 'Raridade:',
+                    common: 'Comum',
+                    rare: 'Rara',
+                    epic: 'Épica',
+                    legendary: 'Lendária',
+                  },
+                  type: {
+                    label: 'Tipo:',
+                    troop: 'Tropa',
+                    building: 'Construção',
+                    spell: 'Feitiço',
+                  },
+                },
+                tr: {
+                  name: (cardName, level) => `${level}. Seviye ${cardName}`,
+                  rarity: {
+                    label: 'Enderlik:',
+                    common: 'Sıradan',
+                    rare: 'Ender',
+                    epic: 'Destansı',
+                    legendary: 'Efsanevi',
+                  },
+                  type: {
+                    label: 'Tür:',
+                    troop: 'Birlik',
+                    building: 'Bina',
+                    spell: 'Büyü',
+                  },
+                },
+              };
+            },
+            readOnly: true,
+          },
+          _bgReady: {
+            type: Boolean,
+            value: false,
+          },
+          _elixirReady: {
+            type: Boolean,
+            value: false,
+          },
+          _infoReady: {
+            type: Boolean,
+            value: false,
+          },
+          _shapesReady: {
+            type: Boolean,
+            value: false,
+          },
+          _iconsReady: {
+            type: Boolean,
+            value: false,
+          },
+          _fontsReady: {
+            type: Boolean,
+            value: false,
+          },
+          /**
+           * Whether the component is ready to generate the card (all assets have been loaded).
+           *
+           * The component fires the event `ready-changed` when this value changes.
+           */
+          ready: {
+            type: Boolean,
+            notify: true,
+            computed: '_checkEverythingReady(_bgReady, _elixirReady, _infoReady, _shapesReady, _iconsReady, _fontsReady)',
+          }
+        };
+      }
+
+      connectedCallback() {
+        super.connectedCallback();
+        this._ctx = this.$.card.getContext('2d');
+
+        // We have to observe the card properties to make sure that we update
+        // the card if the property of a property changes
+        this._observer = new Polymer.FlattenedNodesObserver(this.$.slot, (nodes) => {
+          const addedProperties = nodes.addedNodes.filter(
+            n => n.nodeType === Node.ELEMENT_NODE && n.nodeName === 'CR-CARD-PROPERTY'
+          );
+          for (let addedProperty of addedProperties) {
+            addedProperty.addEventListener('title-changed', () => this.generate());
+            addedProperty.addEventListener('value-changed', () => this.generate());
+            addedProperty.addEventListener('show-icon-background-changed', () => this.generate());
+            addedProperty.addEventListener('show-info-button-changed', () => this.generate());
+            addedProperty.addEventListener('icon-changed', () => this.generate());
+          }
+          const removedProperties = nodes.removedNodes.filter(
+            n => n.nodeType === Node.ELEMENT_NODE && n.nodeName === 'CR-CARD-PROPERTY'
+          );
+          for (let removedProperty of removedProperties) {
+            removedProperty.removeEventListener('title-changed', () => this.generate());
+            removedProperty.removeEventListener('value-changed', () => this.generate());
+            removedProperty.removeEventListener('show-icon-background-changed', () => this.generate());
+            removedProperty.removeEventListener('show-info-button-changed', () => this.generate());
+            removedProperty.removeEventListener('icon-changed', () => this.generate());
+          }
+          this.generate();
+        });
+
+        this._bg = new Image();
+        this._bg.onload = () => this._bgReady = true;
+        this._bg.src = this.resolveUrl('./assets/bg.png');
+
+        this._elixir = new Image();
+        this._elixir.onload = () => this._elixirReady = true;
+        this._elixir.src = this.resolveUrl('./assets/elixir.png');
+
+        this._info = new Image();
+        this._info.onload = () => this._infoReady = true;
+        this._info.src = this.resolveUrl('./assets/info.png');
+
+        let shapeCont = 0;
+        let shapesArr = Object.keys(this._shapes);
+        for (let shape of shapesArr) {
+          this._shapes[shape].onload = () => {
+            shapeCont++;
+            if (shapeCont === shapesArr.length) // All shapes' images have been loaded
+              this._shapesReady = true;
+          };
+          this._shapes[shape].src = this.resolveUrl(`./assets/shapes/${shape}.png`);
+        }
+
+        let iconCont = 0;
+        let iconsArr = Object.keys(this._icons);
+        for (let icon of iconsArr) {
+          this._icons[icon].onload = () => {
+            iconCont++;
+            if (iconCont === iconsArr.length) // All icons' images have been loaded
+              this._iconsReady = true;
+          };
+          this._icons[icon].src = this.resolveUrl(`./assets/icons/${icon}.png`);
+        }
+
+        WebFont.load({
+          custom: {
+            families: ['Supercell Magic', 'SC CCBackBeat'],
+          },
+          active: () => this._fontsReady = true,
+        });
+
+        this.addEventListener('ready-changed', () => this.generate());
+      }
+
+      disconnectedCallback() {
+        super.disconnectedCallback();
+        if (this._observer)
+          this._observer.disconnect();
+      }
+
+      _getCanvas(width, height) {
+        let canvas;
+        if (width && width > 0) {
+          canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = (height && height > 0) ?
+            height :
+            Math.round(width / CrCard.WIDTH * CrCard.HEIGHT) || 1;
+        } else
+          canvas = this.$.card;
+        return canvas;
+      }
+
+      /**
+       * Returns the PNG of the card, encoded as a base64 data URL.
+       * @param {number} width The width of the card to export. If no value is given, the originally generated card will be returned.
+       * @param {number} height The height of the card to export. If no value is given, the height will be computed according to the card width.
+       * @returns {string} The base64 encoded data URL of the card.
+       */
+      toDataURL(width, height) {
+        return this._getCanvas(width, height).toDataURL('image/png');
+      }
+
+      /**
+       * Returns the PNG of the card, encoded as a blob.
+       * @param {number} width The width of the card to export. If no value is given, the originally generated card will be returned.
+       * @param {number} height The height of the card to export. If no value is given, the height will be computed according to the card width.
+       * @returns {Promise.<Blob|Error|null>} A promise that returns the blob of the card when fulfilled, or an error or null when rejected.
+       */
+      toBlob(width, height) {
+        return new Promise((fulfill, reject) => {
+          try {
+            this._getCanvas(width, height).toBlob((blob) => {
+              if (blob)
+                fulfill(blob);
+              else
+                reject();
+            });
+          } catch (e) {
+            reject(e);
+          }
+        });
+      }
+
+      /**
+       * Prompts the user to save the card image as a PNG.
+       * @param {string} fileName The name of the file to save. If no value is given, the name will be `Level <level> <cardName>.png`
+       * @param {number} width The width of the card to export. If no value is given, the originally generated card will be returned.
+       * @param {number} height The height of the card to export. If no value is given, the height will be computed according to the card width.
+       * @returns {Promise<Blob|Error|null>} A promise that returns the blob of the saved file when fulfilled, or an error or null when rejected.
+       */
+      save(fileName, width, height) {
+        return new Promise((fulfill, reject) => {
+          if (!fileName)
+            fileName = `Level ${this.level} ${this.cardName}.png`;
+          else if (!fileName.endsWith('.png'))
+            fileName += '.png';
+          this.toBlob(width, height)
+            .then((blob) => {
+              try {
+                saveAs(blob, fileName);
+                fulfill(blob);
+              } catch (e) {
+                reject(e);
+              }
+            })
+            .catch((e) => reject(e));
+        });
+      }
+
+      /**
+       * Generates the card on the internal canvas.
+       *
+       * This method is called automatically when a property of the card changes,
+       * but you can also call it yourself to force the update of the canvas.
+       */
+      generate() {
+        if (this.ready) {
+          // Draw the background and save the context
+          this._ctx.translate(0, 0);
+          this._ctx.drawImage(this._bg, 0, 0, CrCard.WIDTH, CrCard.HEIGHT);
+          this._ctx.save();
+
+          // Draw the card name
+          this._ctx.save();
+          this._ctx.textAlign = 'center';
+          this._ctx.textBaseline = 'hanging';
+          this._ctx.lineWidth = 6;
+          this._ctx.fillStyle = 'white';
+          this._ctx.strokeStyle = 'black';
+          this._ctx.shadowOffsetY = 5;
+          this._ctx.shadowColor = 'black';
+          const cardName = this._locales[this.language].name(this.cardName, this.level);
+          this._fitFontSize(cardName, 'Supercell Magic', 1120, 70, 1);
+          this._ctx.strokeText(cardName, 716, 50);
+          this._ctx.fillText(cardName, 716, 50);
+          this._ctx.restore();
+
+          // Draw the image (if possible)
+          this._ctx.save();
+          this._ctx.translate(88, 215);
+          this._ctx.save();
+          this._ctx.beginPath();
+          // First of all, let's create the clip for the image based on the card rarity
+          if (this.rarity === 'legendary') {
+            this._ctx.moveTo(211, 17);
+            this._ctx.lineTo(385, 81);
+            this._ctx.lineTo(385, 445);
+            this._ctx.lineTo(211, 510);
+            this._ctx.lineTo(35, 445);
+            this._ctx.lineTo(35, 81);
+            this._ctx.clip();
+          } else {
+            this._ctx.moveTo(52, 34);
+            this._ctx.lineTo(371, 34);
+            this._ctx.quadraticCurveTo(397, 34, 397, 60);
+            this._ctx.lineTo(397, 469);
+            this._ctx.quadraticCurveTo(397, 495, 371, 495);
+            this._ctx.lineTo(52, 495);
+            this._ctx.quadraticCurveTo(26, 495, 26, 469);
+            this._ctx.lineTo(26, 60);
+            this._ctx.clip();
+          }
+          // Draw the image white background
+          this._ctx.fillStyle = 'white';
+          this._ctx.fillRect(32, 34, 360, 460);
+          // Now we can finally draw the image
+          if (this._image && this._image.src && this._image.complete) {
+            // this._ctx.drawImage(this._image, 32, 34, 360, 460);
+            const ratio = Math.min(360 / this._image.width, 460 / this._image.height);
+            this._ctx.drawImage(
+              this._image,
+              32 + (180 - (this._image.width * ratio / 2)),
+              34 + (230 - (this._image.height * ratio / 2)),
+              this._image.width * ratio,
+              this._image.height * ratio
+            );
+          }
+          this._ctx.restore();
+          // Draw the contour of the image
+          const contour = this._shapes[this._rarities[this.rarity].shape];
+          if (this.rarity === 'legendary')
+            this._ctx.drawImage(contour, 18, 0, 386, 529);
+          else
+            this._ctx.drawImage(contour, 18, 27, 385, 477);
+
+          // Draw the elixir cost
+          // Let's draw the elixir drop...
+          this._ctx.drawImage(this._elixir, 0, 15, 105, 125);
+          // ...and then the elixir cost
+          this._ctx.font = '70px "Supercell Magic"';
+          this._ctx.textAlign = 'center';
+          this._ctx.textBaseline = 'middle';
+          this._ctx.lineWidth = 6;
+          this._ctx.fillStyle = '#FFE9FF';
+          this._ctx.strokeStyle = '#760088';
+          this._ctx.shadowOffsetY = 5;
+          this._ctx.shadowColor = '#760088';
+          this._ctx.strokeText(this.elixirCost, 52, 77);
+          this._ctx.fillText(this.elixirCost, 52, 77);
+          this._ctx.restore();
+
+          // Draw rarity and type
+          // First of all, draw the little box based on the card rarity
+          this._ctx.save();
+          this._ctx.translate(558, 207);
+          this._ctx.fillStyle = this._rarities[this.rarity].color;
+          this._ctx.beginPath();
+          this._ctx.moveTo(15, 0);
+          this._ctx.lineTo(758, 0);
+          this._ctx.quadraticCurveTo(773, 0, 773, 15);
+          this._ctx.lineTo(773, 127);
+          this._ctx.quadraticCurveTo(773, 157, 758, 157);
+          this._ctx.lineTo(15, 157);
+          this._ctx.quadraticCurveTo(0, 157, 0, 142);
+          this._ctx.lineTo(0, 15);
+          this._ctx.quadraticCurveTo(0, 0, 15, 0);
+          this._ctx.fill();
+          // Ok, now we can draw the text
+          this._ctx.fillStyle = "white";
+          this._ctx.textBaseline = "hanging";
+          // First of all, draw the labels
+          this._fitFontSize(
+            this._locales[this.language].rarity.label,
+            'Supercell Magic',
+            330,
+            48,
+            1
+          );
+          this._ctx.fillText(this._locales[this.language].rarity.label, 17, 23);
+          this._fitFontSize(
+            this._locales[this.language].type.label,
+            'Supercell Magic',
+            330,
+            48,
+            1
+          );
+          this._ctx.fillText(this._locales[this.language].type.label, 392, 23);
+          // Then the type
+          this._ctx.lineWidth = 5;
+          this._ctx.strokeStyle = "black";
+          this._ctx.fillStyle = "white";
+          this._ctx.shadowOffsetY = 5;
+          this._ctx.shadowColor = "black";
+          this._fitFontSize(
+            this._locales[this.language].type[this.type],
+            'Supercell Magic',
+            330,
+            54,
+            1
+          );
+          this._ctx.strokeText(this._locales[this.language].type[this.type], 394, 88);
+          this._ctx.fillText(this._locales[this.language].type[this.type], 394, 88);
+          // And finally the rarity
+          if (this.rarity === 'legendary') {
+            const randStartIndex = Math.floor(Math.random() * 5);
+
+            const gradient = this._ctx.createLinearGradient(0, 0, 380, 0);
+            gradient.addColorStop(0, CrCard.LEGENDARY_GRADIENT[randStartIndex]);
+            gradient.addColorStop(0.5, CrCard.LEGENDARY_GRADIENT[(randStartIndex + 1) % 5]);
+            gradient.addColorStop(1, CrCard.LEGENDARY_GRADIENT[(randStartIndex + 2) % 5]);
+            this._ctx.fillStyle = gradient;
+          }
+          this._fitFontSize(
+            this._locales[this.language].rarity[this.rarity],
+            'Supercell Magic',
+            330,
+            54,
+            1
+          );
+          this._ctx.strokeText(this._locales[this.language].rarity[this.rarity], 18, 88);
+          this._ctx.fillText(this._locales[this.language].rarity[this.rarity], 18, 88);
+          this._ctx.restore();
+
+          // Draw the description
+          // DESCRIPTION
+          this._ctx.save();
+          this._ctx.font = '42px "SC CCBackBeat"';
+          // Alignment
+          this._ctx.textAlign = "center";
+          this._ctx.textBaseline = "top";
+          this._ctx.fillStyle = "#333";
+
+          this._wrapText(this.description, 940, 440, 702, 54);
+          this._ctx.restore();
+
+          const properties = Polymer
+            .FlattenedNodesObserver
+            .getFlattenedNodes(this.$.slot)
+            .filter(n => n.nodeType === Node.ELEMENT_NODE && n.nodeName === 'CR-CARD-PROPERTY');
+          // Draw the properties
+          for (let i = properties.length - 1; i >= 0; i--) {
+            this._ctx.save();
+            const rowIndex = Math.floor(i / 2);
+            this._drawProperty(
+              properties[i],
+              (rowIndex % 2) === 0,
+              ((i % 2) === 0) ? 133 : 721,
+              (rowIndex * 120) + 889
+            );
+            this._ctx.restore();
+          }
+        }
+      }
+
+      _wrapText(text, x, y, maxWidth, lineHeight) {
+        const blocks = text.split('\n');
+        for (let block of blocks) {
+          const words = block.split(' ');
+          let line = '';
+          for (let n = 0; n < words.length; n++) {
+            const testLine = line + words[n] + ' ';
+            const metrics = this._ctx.measureText(testLine);
+            const testWidth = metrics.width;
+            if (testWidth > maxWidth && n > 0) {
+              this._ctx.fillText(line, x, y);
+              line = words[n] + ' ';
+              y += lineHeight;
+            }
+            else
+              line = testLine;
+          }
+          this._ctx.fillText(line, x, y);
+          y += lineHeight;
+        }
+      }
+
+      _fitFontSize(text, fontFamily, maxWidth, startSize, minSize) {
+        let fontSize = startSize;
+        this._ctx.font = `${fontSize}px "${fontFamily}"`;
+        while ((fontSize > minSize) && (this._ctx.measureText(text).width > maxWidth)) {
+          fontSize--;
+          this._ctx.font = `${fontSize}px "${fontFamily}"`;
+        }
+        return fontSize;
+      }
+
+      _drawProperty(property, darkBackground, x, y) {
+        this._ctx.translate(x, y);
+        // Background
+        this._ctx.save();
+        this._ctx.fillStyle = darkBackground ? '#C2D3DB' : '#FDFEFE';
+        this._ctx.beginPath();
+        this._ctx.rect(0, 0, 567, 110);
+        this._ctx.fill();
+        this._ctx.restore();
+        // Title
+        this._ctx.save();
+        this._ctx.textAlign = 'left';
+        this._ctx.textBaseline = 'hanging';
+        this._ctx.fillStyle = '#333';
+        this._fitFontSize(property.title, 'Supercell Magic', 440, 40, 1);
+        this._ctx.fillText(property.title, 109, 16);
+        this._ctx.fillStyle = 'white';
+        this._ctx.strokeStyle = 'black';
+        this._ctx.shadowColor = 'black';
+        this._ctx.lineWidth = 4;
+        this._ctx.shadowOffsetY = 4;
+        this._fitFontSize(property.value, 'Supercell Magic', 440, 48, 1);
+        this._ctx.strokeText(property.value, 109, 57);
+        this._ctx.fillText(property.value, 109, 57);
+        this._ctx.restore();
+        // Info button
+        if (property.showInfoButton)
+          this._ctx.drawImage(this._info, 485, 18, 65, 67);
+        // Icon background
+        if (property.showIconBackground) {
+          this._ctx.save();
+          this._ctx.fillStyle = '#575E62';
+          this._ctx.beginPath();
+          this._ctx.moveTo(13, 8);
+          this._ctx.lineTo(96, 8);
+          this._ctx.quadraticCurveTo(102, 8, 102, 14);
+          this._ctx.lineTo(102, 97);
+          this._ctx.quadraticCurveTo(102, 103, 96, 103);
+          this._ctx.lineTo(13, 103);
+          this._ctx.quadraticCurveTo(7, 103, 7, 97);
+          this._ctx.lineTo(7, 14);
+          this._ctx.quadraticCurveTo(7, 8, 13, 8);
+          this._ctx.fill();
+          this._ctx.restore();
+        }
+        // Icon
+        if (property.icon in this._icons)
+          this._ctx.drawImage(this._icons[property.icon], 2, 3, 105, 105);
+      }
+
+      _imageChanged(newImage) {
+        if (!this._image) {
+          this._image = new Image();
+          this._image.crossOrigin = 'Anonymous';
+          this._image.onload = () => this.generate();
+          this._image.onerror = () => {
+            this._image = null;
+            this.generate();
+          }
+        }
+        this._image.src = newImage;
+      }
+
+      _checkEverythingReady(bgReady, elixirReady, infoReady, shapesReady, iconsReady, fontsReady) {
+        return !!this._ctx && bgReady && elixirReady && infoReady && shapesReady && iconsReady && fontsReady;
+      }
+    }
+
+    window.customElements.define(CrCard.is, CrCard);
+  </script>
+</dom-module>

@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, minimum-scale=1, initial-scale=1, user-scalable=yes">
+
+  <title>cr-card demo</title>
+
+  <script src="../../webcomponentsjs/webcomponents-lite.js"></script>
+
+  <link rel="import" href="../../iron-demo-helpers/demo-pages-shared-styles.html">
+  <link rel="import" href="../../iron-demo-helpers/demo-snippet.html">
+  <link rel="import" href="../../cr-button/cr-button.html">
+  <link rel="import" href="../cr-card.html">
+  <link rel="import" href="../cr-card-property.html">
+
+  <custom-style>
+    <style is="custom-style" include="demo-pages-shared-styles">
+      .container {
+        text-align: center;
+      }
+      cr-card {
+        width: 100%;
+        height: auto;
+      }
+    </style>
+  </custom-style>
+</head>
+<body>
+<div class="vertical-section-container centered">
+  <demo-snippet>
+    <h3>Advanced cr-card demo with all properties set</h3>
+    <template>
+      <div class="container">
+        <cr-card
+            id="card"
+            language="en"
+            card-name="#UseThePlatform"
+            rarity="legendary"
+            level="5"
+            type="spell"
+            elixir-cost="9"
+            description="Just use it!"
+            image="https://web-components-resources.appspot.com/static/logo.svg">
+          <cr-card-property title="Philosophy" value="100% open source" icon="shield_hp"></cr-card-property>
+          <cr-card-property title="License" value="MIT" icon="common_cards" show-info-button></cr-card-property>
+        </cr-card>
+        <cr-button onclick="card.save();">Download card</cr-button>
+      </div>
+    </template>
+  </demo-snippet>
+</div>
+</body>
+</html>
