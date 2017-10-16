@@ -9,6 +9,7 @@ Basic example:
 <custom-element-demo>
   <template>
     <script src="../webcomponentsjs/webcomponents-lite.js"></script>
+    <link rel="import" href="cr-card-property.html">
     <link rel="import" href="cr-card.html">
     <style is="custom-style">
       cr-card {
