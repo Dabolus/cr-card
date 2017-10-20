@@ -81,6 +81,7 @@
             type: String,
             value: 'en',
             observer: 'generate',
+            reflectToAttribute: true,
           },
           /**
            * The name of the card.
@@ -89,6 +90,7 @@
             type: String,
             value: '',
             observer: 'generate',
+            reflectToAttribute: true,
           },
           /**
            * The rarity of the card.
@@ -103,6 +105,7 @@
             type: String,
             value: 'common',
             observer: 'generate',
+            reflectToAttribute: true,
           },
           /**
            * The level of the card.
@@ -115,6 +118,7 @@
             type: Number,
             value: 1,
             observer: 'generate',
+            reflectToAttribute: true,
           },
           /**
            * The type of the card.
@@ -128,6 +132,7 @@
             type: String,
             value: 'troop',
             observer: 'generate',
+            reflectToAttribute: true,
           },
           /**
            * The elixir cost of the card.
@@ -140,6 +145,7 @@
             type: String,
             value: '?',
             observer: 'generate',
+            reflectToAttribute: true,
           },
           /**
            * The description of the card.
@@ -148,6 +154,7 @@
             type: String,
             value: '',
             observer: 'generate',
+            reflectToAttribute: true,
           },
           /**
            * The image of the card.
@@ -156,6 +163,16 @@
           image: {
             type: String,
             observer: '_imageChanged',
+            reflectToAttribute: true,
+          },
+          /**
+           * If true, the card image will be stretched in the frame instead of being centered.
+           */
+          stretchImage: {
+            type: Boolean,
+            value: false,
+            observer: 'generate',
+            reflectToAttribute: true,
           },
           _icons: {
             type: Object,
@@ -645,15 +662,18 @@
           this._ctx.fillRect(32, 34, 360, 460);
           // Now we can finally draw the image
           if (this._image && this._image.src && this._image.complete) {
-            // this._ctx.drawImage(this._image, 32, 34, 360, 460);
-            const ratio = Math.min(360 / this._image.width, 460 / this._image.height);
-            this._ctx.drawImage(
-              this._image,
-              32 + (180 - (this._image.width * ratio / 2)),
-              34 + (230 - (this._image.height * ratio / 2)),
-              this._image.width * ratio,
-              this._image.height * ratio
-            );
+            if (this.stretchImage)
+              this._ctx.drawImage(this._image, 32, 34, 360, 460);
+            else {
+              const ratio = Math.min(360 / this._image.width, 460 / this._image.height);
+              this._ctx.drawImage(
+                this._image,
+                32 + (180 - (this._image.width * ratio / 2)),
+                34 + (230 - (this._image.height * ratio / 2)),
+                this._image.width * ratio,
+                this._image.height * ratio
+              );
+            }
           }
           this._ctx.restore();
           // Draw the contour of the image
