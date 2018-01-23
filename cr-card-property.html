@@ -25,6 +25,7 @@
             type: String,
             value: '',
             notify: true,
+            reflectToAttribute: true,
           },
           /**
            * The value of the property.
@@ -33,6 +34,7 @@
             type: String,
             value: '',
             notify: true,
+            reflectToAttribute: true,
           },
           /**
            * Whether the dark gray background of the icon should be displayed.
@@ -43,6 +45,7 @@
             type: Boolean,
             value: true,
             notify: true,
+            reflectToAttribute: true,
           },
           /**
            * Whether the info button on the far right should be displayed.
@@ -53,6 +56,7 @@
             type: Boolean,
             value: false,
             notify: true,
+            reflectToAttribute: true,
           },
           /**
            * The icon of the property.
@@ -92,8 +96,27 @@
           icon: {
             type: String,
             notify: true,
+            reflectToAttribute: true,
           },
         };
+      }
+
+      toJSON() {
+        return {
+          title: this.title,
+          value: this.value,
+          showIconBackground: this.showIconBackground,
+          showInfoButton: this.showInfoButton,
+          icon: this.icon,
+        };
+      }
+
+      fromJSON(json) {
+        this.title = json.title;
+        this.value = json.value;
+        this.showIconBackground = json.showIconBackground;
+        this.showInfoButton = json.showInfoButton;
+        this.icon = json.icon;
       }
     }
 

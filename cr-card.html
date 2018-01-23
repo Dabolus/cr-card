@@ -3,6 +3,7 @@
 <link rel="import" href="webfontloader-import.html">
 <link rel="import" href="filesaver-import.html">
 <link rel="import" href="../cr-fonts/cr-fonts.html">
+<script src="../lz-string/libs/lz-string.js"></script>
 
 <dom-module id="cr-card">
   <template>
@@ -76,6 +77,7 @@
            * - no (Norwegian)
            * - pt (Portuguese)
            * - tr (Turkish)
+           * - ru (Russian)
            */
           language: {
             type: String,
@@ -413,6 +415,22 @@
                     spell: 'Büyü',
                   },
                 },
+                ru: {
+                  name: (cardName, level) => `${cardName} ${level}-го уровеня`,
+                  rarity: {
+                    label: 'Редкость:',
+                    common: 'Обычная',
+                    rare: 'Редкая',
+                    epic: 'Эпическая',
+                    legendary: 'Легендарная',
+                  },
+                  type: {
+                    label: 'Тип:',
+                    troop: 'Войско',
+                    building: 'Здание',
+                    spell: 'Заклинание',
+                  },
+                },
               };
             },
             readOnly: true,
@@ -551,27 +569,43 @@
        * Returns the PNG of the card, encoded as a base64 data URL.
        * @param {number} width The width of the card to export. If no value is given, the originally generated card will be returned.
        * @param {number} height The height of the card to export. If no value is given, the height will be computed according to the card width.
-       * @returns {string} The base64 encoded data URL of the card.
+       * @param {string} mimeType The MIME type of the image to export. Defaults to `image/png`.
+       * @returns {Promise<string|Error>} A promise that returns the base64 encoded data URL of the card when fulfilled, or an error when rejected.
        */
-      toDataURL(width, height) {
-        return this._getCanvas(width, height).toDataURL('image/png');
+      toDataURL(width, height, mimeType) {
+        return new Promise((fulfill, reject) => {
+          const type = mimeType || 'image/png';
+          const canvas = this._getCanvas(width, height);
+          if (canvas) {
+            const dataURL = canvas.toDataURL(type);
+            if (!dataURL)
+              reject(new Error('Unable to generate the data URL.'));
+            else if (!dataURL.startsWith(`data:${type};base64`))
+              reject(new Error(`Unsupported MIME type: ${type}.`));
+            else
+              fulfill(dataURL);
+          } else
+            reject(new Error('Unable to get the canvas of the card.'));
+        });
       }
 
       /**
        * Returns the PNG of the card, encoded as a blob.
        * @param {number} width The width of the card to export. If no value is given, the originally generated card will be returned.
        * @param {number} height The height of the card to export. If no value is given, the height will be computed according to the card width.
-       * @returns {Promise.<Blob|Error|null>} A promise that returns the blob of the card when fulfilled, or an error or null when rejected.
+       * @param {string} mimeType The MIME type of the image to export. Defaults to `image/png`.
+       * @returns {Promise<Blob|Error|null>} A promise that returns the blob of the card when fulfilled, or an error or null when rejected.
        */
-      toBlob(width, height) {
+      toBlob(width, height, mimeType) {
         return new Promise((fulfill, reject) => {
+          const type = mimeType || 'image/png';
           try {
             this._getCanvas(width, height).toBlob((blob) => {
               if (blob)
                 fulfill(blob);
               else
                 reject();
-            });
+            }, type);
           } catch (e) {
             reject(e);
           }
@@ -579,19 +613,22 @@
       }
 
       /**
-       * Prompts the user to save the card image as a PNG.
+       * Prompts the user to save the card image as an image.
        * @param {string} fileName The name of the file to save. If no value is given, the name will be `Level <level> <cardName>.png`
        * @param {number} width The width of the card to export. If no value is given, the originally generated card will be returned.
        * @param {number} height The height of the card to export. If no value is given, the height will be computed according to the card width.
+       * @param {string} mimeType The MIME type of the image to export. Defaults to `image/png`.
        * @returns {Promise<Blob|Error|null>} A promise that returns the blob of the saved file when fulfilled, or an error or null when rejected.
        */
-      save(fileName, width, height) {
+      save(fileName, width, height, mimeType) {
         return new Promise((fulfill, reject) => {
+          const type = mimeType || 'image/png';
+          const ext = type.substr(type.indexOf('/') + 1);
           if (!fileName)
-            fileName = `Level ${this.level} ${this.cardName}.png`;
-          else if (!fileName.endsWith('.png'))
-            fileName += '.png';
-          this.toBlob(width, height)
+            fileName = `Level ${this.level} ${this.cardName}.${ext}`;
+          else if (!fileName.endsWith(`.${ext}`))
+            fileName += `.${ext}`;
+          this.toBlob(width, height, type)
             .then((blob) => {
               try {
                 saveAs(blob, fileName);
@@ -600,7 +637,184 @@
                 reject(e);
               }
             })
-            .catch((e) => reject(e));
+            .catch(reject);
+        });
+      }
+
+      /**
+       * Returns the card as a JSON object.
+       * @returns {Promise<Object|Error>} A promise that returns the JSON of the card when fulfilled, or an error when rejected.
+       */
+      toJSON() {
+        return new Promise((fulfill, reject) => {
+          try {
+            fulfill({
+              lang: this.language,
+              name: this.cardName,
+              rarity: this.rarity,
+              level: this.level,
+              type: this.type,
+              elixir: this.elixirCost,
+              description: this.description,
+              image: this.image,
+              properties: Polymer
+                .FlattenedNodesObserver
+                .getFlattenedNodes(this.$.slot)
+                .filter(n => n.nodeType === Node.ELEMENT_NODE && n.nodeName === 'CR-CARD-PROPERTY')
+                .map((p) => p.toJSON()),
+            });
+          } catch (e) {
+            reject(e);
+          }
+        });
+      }
+
+      /**
+       * Imports the card from a JSON object.
+       * @returns {Promise<bool|Error>} A promise that returns true when fulfilled, or an error when rejected.
+       */
+      fromJSON(json) {
+        return new Promise((fulfill, reject) => {
+          if (json) {
+            try {
+              this.language = json.lang;
+              this.cardName = json.name;
+              this.rarity = json.rarity;
+              this.level = json.level;
+              this.type = json.type;
+              this.elixirCost = json.elixir;
+              this.description = json.description;
+              this.image = json.image;
+              while (this.firstChild)
+                this.removeChild(this.firstChild);
+              for (let prop of json.properties) {
+                const p = new CrCardProperty();
+                p.fromJSON(prop);
+                this.appendChild(p);
+              }
+              fulfill(true);
+            } catch (e) {
+              reject(e);
+            }
+          } else
+            reject(new Error('Empty JSON provided.'));
+        });
+      }
+
+      /**
+       * Returns the card as a JSON string.
+       * @param {boolean} minify Whether the JSON output should be minified.
+       * @returns {Promise<string|Error>} A promise that returns the JSON string of the card when fulfilled, or an error when rejected.
+       */
+      toString(minify) {
+        return new Promise((fulfill, reject) => {
+          this.toJSON().then((json) => {
+            const str = JSON.stringify(json, null, minify ? 0 : 4);
+            if (str)
+              fulfill(str);
+            else
+              reject('Unable to stringify the card.');
+          }).catch(reject);
+        });
+      }
+
+      /**
+       * Generates the card from a JSON formatted string.
+       * @param {string} str The JSON string of the card.
+       * @returns {Promise<bool|Error>} A promise that returns true when fulfilled, or an error when rejected.
+       */
+      fromString(str) {
+        return new Promise((fulfill, reject) => {
+          if (str) {
+            try {
+              const json = JSON.parse(str);
+              if (json)
+                return this.fromJSON(json);
+              else
+                reject('Empty JSON provided.');
+            } catch (e) {
+              reject(e);
+            }
+          } else
+            reject('No string specified.');
+        });
+      }
+
+      /**
+       * Returns the card as an [LZ-string](http://pieroxy.net/blog/pages/lz-string/index.html).
+       * @returns {Promise<string|Error>} A promise that returns the LZ-string of the card when fulfilled, or an error when rejected.
+       */
+      compress() {
+        return new Promise((fulfill, reject) => {
+          this.toString(true).then((str) => {
+            const compressed = LZString.compressToUTF16(str);
+            if (compressed)
+              fulfill(compressed);
+            else
+              reject('Unable to compress the card as an LZ-string.');
+          }).catch(reject);
+        });
+      }
+
+      /**
+       * Generates the card from a compressed [LZ-string](http://pieroxy.net/blog/pages/lz-string/index.html).
+       * @param {string} str The LZ-string to import.
+       * @returns {Promise<bool|Error>} A promise that returns true when fulfilled, or an error when rejected.
+       */
+      decompress(str) {
+        return new Promise((fulfill, reject) => {
+          if (str) {
+            const decompressed = LZString.decompressFromUTF16(str);
+            if (decompressed)
+              return this.fromString(decompressed);
+            else
+              reject('Invalid or corrupted LZ-string.');
+          } else
+            reject('No LZ-string specified.');
+        });
+      }
+
+      /**
+       * Prompts the user to save the card image as a compressed .card file.
+       * @param {string} fileName The name of the file to save. If no value is given, the name will be `Level <level> <cardName>.card`
+       * @returns {Promise<Blob|string>} A promise that returns the blob of the saved file when fulfilled, or an error when rejected.
+       */
+      exportFile(fileName) {
+        return new Promise((fulfill, reject) => {
+          if (!fileName)
+            fileName = `Level ${this.level} ${this.cardName}.card`;
+          else if (!fileName.endsWith('.card'))
+            fileName += '.card';
+          this.compress().then((lzString) => {
+            const blob = new Blob([lzString], {type: 'application/octet-stream'});
+            if (blob) {
+              try {
+                saveAs(blob, fileName);
+                fulfill(blob);
+              } catch (e) {
+                reject(e);
+              }
+            } else
+              reject('Unable to generate the card blob.');
+          }).catch(reject);
+        });
+      }
+
+      /**
+       * Imports the card from a File.
+       * @param {File} file The file to import.
+       * @returns {Promise<bool|Error>} A promise that returns true when fulfilled, or an error when rejected.
+       */
+      importFile(file) {
+        return new Promise((fulfill, reject) => {
+          const reader = new FileReader();
+          reader.addEventListener('loadend', () => {
+            if (reader.result)
+              return this.decompress(reader.result);
+            else
+              reject('Could not read file.');
+          });
+          reader.readAsText(file);
         });
       }
 
@@ -679,9 +893,9 @@
           // Draw the contour of the image
           const contour = this._shapes[this._rarities[this.rarity].shape];
           if (this.rarity === 'legendary')
-            this._ctx.drawImage(contour, 18, 0, 386, 529);
+            this._ctx.drawImage(contour, 18, 0, 386, 529); // 368x529
           else
-            this._ctx.drawImage(contour, 18, 27, 385, 477);
+            this._ctx.drawImage(contour, 18, 27, 385, 477); // 367x450
 
           // Draw the elixir cost
           // Let's draw the elixir drop...

@@ -19,9 +19,14 @@
       .container {
         text-align: center;
       }
+
       cr-card {
         width: 100%;
         height: auto;
+      }
+
+      [hidden] {
+        display: none !important;
       }
     </style>
   </custom-style>
@@ -45,8 +50,23 @@
           <cr-card-property title="Philosophy" value="100% open source" icon="shield_hp"></cr-card-property>
           <cr-card-property title="License" value="MIT" icon="common_cards" show-info-button></cr-card-property>
         </cr-card>
-        <cr-button onclick="card.save();">Download card</cr-button>
+        <cr-button small success onclick="card.save();">Download</cr-button>
+        <cr-button small info onclick="card.exportFile()">Export</cr-button>
+        <label for="import">
+          <cr-button small>Import</cr-button>
+          <input type="file" id="import" accept=".card" hidden>
+        </label>
       </div>
+
+      <script>
+        var cardImport = document.getElementById('import');
+        var card = document.getElementById('card');
+
+        cardImport.addEventListener('change', function () {
+          if (cardImport.files[0])
+            card.importFile(cardImport.files[0]);
+        });
+      </script>
     </template>
   </demo-snippet>
 </div>
