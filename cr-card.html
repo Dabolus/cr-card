@@ -810,7 +810,7 @@
           const reader = new FileReader();
           reader.addEventListener('loadend', () => {
             if (reader.result)
-              return this.decompress(reader.result);
+              this.decompress(reader.result).then(fulfill).catch(reject);
             else
               reject('Could not read file.');
           });

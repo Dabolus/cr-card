@@ -1,6 +1,6 @@
 {
   "name": "cr-card",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "An element that automatically generates a Clash Royale card inside a canvas.",
   "authors": [
     "Dabolus"
