@@ -1,0 +1,50 @@
+{
+  "name": "cr-card",
+  "version": "3.0.0",
+  "description": "A complete and simple to use share menu.",
+  "main": "cr-card.js",
+  "module": "cr-card.js",
+  "browser": "cr-card.iife.js",
+  "types": "cr-card.d.ts",
+  "scripts": {
+    "start": "run-p watch serve browser-sync",
+    "watch": "rollup -w -c rollup.config.ts",
+    "serve": "polyserve --npm -p 8082",
+    "browser-sync": "browser-sync start --proxy 'localhost:8082' --port 8080 --ui-port 8081 --files 'demo' '*.js'",
+    "build": "NODE_ENV=production rollup -c rollup.config.ts",
+    "test": "jest",
+    "lint": "tslint -p .",
+    "format": "tslint -p . --fix",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "@polymer/iron-demo-helpers": "^3.0.2",
+    "@webcomponents/webcomponentsjs": "^2.2.3",
+    "browser-sync": "^2.26.3",
+    "npm-run-all": "^4.1.5",
+    "polyserve": "^0.27.15",
+    "rollup": "^1.1.0",
+    "rollup-plugin-minify-html-literals": "^1.1.2",
+    "rollup-plugin-terser": "^4.0.2",
+    "rollup-plugin-typescript2": "^0.18.1",
+    "tslint": "^5.12.1",
+    "typescript": "^3.2.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Dabolus/cr-card.git"
+  },
+  "keywords": [
+    "custom-element",
+    "web-component",
+    "clash",
+    "royale",
+    "card"
+  ],
+  "author": "Giorgio Garasto <giorgio@garasto.it>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Dabolus/cr-card/issues"
+  },
+  "homepage": "https://github.com/Dabolus/cr-card#readme"
+}
