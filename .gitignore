@@ -1,2 +1,7 @@
-.idea
-bower_components*
+.idea/
+node_modules/
+.rpt2_cache/
+# TODO: remove next two lines as soon as we can safely remove the HTML version of the elements
+# /cr-card.*
+# /cr-card-property.*
+*.log
